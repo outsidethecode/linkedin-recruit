@@ -6,6 +6,7 @@ chrome.runtime.onMessage.addListener((request) => {
   }
 })
 
+console.log('background 111111111111111 ')
 // Define the regular expression pattern for LinkedIn URLs
 const linkedinPattern = /^https:\/\/(www\.)?linkedin\.com\/.*/;
 

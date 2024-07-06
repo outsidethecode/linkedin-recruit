@@ -1,38 +1,132 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react';
+import './SidePanel.css';
 
-import './SidePanel.css'
+const mockLinkedInProfile = {
+  name: 'John Doe',
+  headline: 'Software Engineer at XYZ Corp',
+  location: 'San Francisco Bay Area',
+  connections: 500,
+  // Add more fields as needed
+};
+
+interface JobRequirement {
+  category: string;
+  importance: string;
+  text: string;
+}
+
+interface Job {
+  title: string;
+  description: string;
+  requirements: JobRequirement[];
+}
+
+const requirementDetails = [
+  {
+    index: 0,
+    comment: "Requirement 0: Strong match.",
+    matchingPercentage: 90,
+  },
+  {
+    index: 1,
+    comment: "Requirement 1: Moderate match.",
+    matchingPercentage: 75,
+  },
+  {
+    index: 2,
+    comment: "Requirement 2: Weak match.",
+    matchingPercentage: 50,
+  },
+  // Add more requirements as needed
+];
 
 export const SidePanel = () => {
-  const [countSync, setCountSync] = useState(0)
+  const [countSync, setCountSync] = useState(0);
   const [selectedJobTitle, setSelectedJobTitle] = useState('');
-  const [matchResults, setMatchResults] = useState<string>('');
-
-  const jobTitles = ['Software Engineer', 'Product Manager', 'UX Designer', 'Data Scientist']; // Example job titles
-  const link = 'https://github.com/guocaoyi/create-chrome-ext'
+  const [matchResults, setMatchResults] = useState<{ requirement: JobRequirement, percentage: number, comment: string }[]>([]);
+  const [totalMatchPercentage, setTotalMatchPercentage] = useState<number>(0);
+  const [jobTitles, setJobTitles] = useState<string[]>([]);
+  const [profileName, setProfileName] = useState<string>('');
+  const link = 'https://github.com/guocaoyi/create-chrome-ext';
 
   useEffect(() => {
     chrome.storage.sync.get(['count'], (result) => {
-      setCountSync(result.count || 0)
-    })
+      setCountSync(result.count || 0);
+    });
+
+    chrome.storage.local.get(['jobs'], (result) => {
+      if (result.jobs) {
+        const titles = result.jobs.map((job: Job) => job.title);
+        setJobTitles(titles);
+      }
+    });
 
     chrome.runtime.onMessage.addListener((request) => {
       if (request.type === 'COUNT') {
-        setCountSync(request.count || 0)
+        setCountSync(request.count || 0);
       }
-    })
-  }, [])
+    });
 
-  const handleMatchNow = () => {
-    // Simulate fetching data or processing match
-    // For now, let's just set a simple text result
-    setMatchResults(`Matching results for ${selectedJobTitle}: Lorem ipsum dolor sit amet.`);
+    // Get current tab URL
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      if (tabs && tabs[0] && tabs[0].url) {
+        const url = tabs[0].url;
+        console.log('Checking the URL: ', url);
+
+        if (/^https:\/\/(www\.)?linkedin\.com\/in\/.*/.test(url)) {
+          console.log('The URL is related to a LinkedIn profile');
+
+          // Placeholder for calling the LinkedIn API
+          // Simulate fetching LinkedIn profile data
+          fetchLinkedInProfile().then((profile: any) => {
+            console.log('Got the profile', profile);
+            setProfileName(profile.name);
+          });
+        }
+      }
+    });
+  }, []);
+
+  const fetchLinkedInProfile = async () => {
+    // Simulate an API call by returning a promise that resolves to the mock JSON
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        resolve(mockLinkedInProfile);
+      }, 1000);
+    });
   };
 
+  const calculateMatchPercentage = (requirements: JobRequirement[]): { requirement: JobRequirement, percentage: number, comment: string }[] => {
+    // Use the hardcoded requirement details to calculate match percentage
+    return requirements.map((requirement, index) => {
+      const detail = requirementDetails.find(detail => detail.index === index);
+      return {
+        requirement,
+        percentage: detail ? detail.matchingPercentage : 0,
+        comment: detail ? detail.comment : "No comment available."
+      };
+    });
+  };
+
+  const handleMatchNow = () => {
+    chrome.storage.local.get(['jobs'], (result) => {
+      if (result.jobs) {
+        const job = result.jobs.find((job: Job) => job.title === selectedJobTitle);
+        if (job) {
+          const matchedRequirements = calculateMatchPercentage(job.requirements);
+          setMatchResults(matchedRequirements);
+          const totalPercentage = matchedRequirements.reduce((sum, item) => sum + item.percentage, 0) / matchedRequirements.length;
+          setTotalMatchPercentage(totalPercentage);
+        }
+      }
+    });
+  };
 
   return (
     <main>
       <h3>SidePanel Page</h3>
       <h4>Count from Popup: {countSync}</h4>
+      {profileName && <h4>Profile Name: {profileName}</h4>}
       <div className="form-container">
         <label htmlFor="jobTitle">Select Job Title:</label>
         <select
@@ -49,14 +143,21 @@ export const SidePanel = () => {
         </select>
         <button onClick={handleMatchNow}>Match now</button>
       </div>
-      {matchResults && (
+      {matchResults.length > 0 && (
         <div className="results-container">
           <h4>Match Results:</h4>
-          <p>{matchResults}</p>
+          <ul>
+            {matchResults.map((item, index) => (
+              <li key={index}>
+                {item.requirement.text} - {item.percentage}% ({item.comment})
+              </li>
+            ))}
+          </ul>
+          <h4>Total Match Percentage: {totalMatchPercentage.toFixed(2)}%</h4>
         </div>
       )}
     </main>
-  )
-}
+  );
+};
 
-export default SidePanel
+export default SidePanel;
