@@ -47,6 +47,8 @@ export const SidePanel = () => {
   const [totalMatchPercentage, setTotalMatchPercentage] = useState<number>(0);
   const [jobTitles, setJobTitles] = useState<string[]>([]);
   const [profileName, setProfileName] = useState<string>('');
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
   const link = 'https://github.com/guocaoyi/create-chrome-ext';
 
   useEffect(() => {
@@ -122,11 +124,80 @@ export const SidePanel = () => {
     });
   };
 
+  // const handleLinkedInAuth = () => {
+  //   const clientId = '78pidx3x194n5y'; // Replace with your LinkedIn app client ID
+  //   const redirectUri = chrome.identity.getRedirectURL();
+  //   const state = encodeURIComponent('random_state_string123456'); // Generate a random state string
+  //   console.log('Redirect URI:', redirectUri);
+
+  //   const authUrl = `https://www.linkedin.com/oauth/v2/authorization?response_type=code&client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=r_liteprofile%20r_emailaddress&state=${state}`;
+
+  //   chrome.identity.launchWebAuthFlow(
+  //     {
+  //       url: authUrl,
+  //       interactive: true,
+  //     },
+  //     (redirectUrl: any) => {
+  //       if (chrome.runtime.lastError) {
+  //         console.error(chrome.runtime.lastError);
+  //         //return;
+  //       }
+
+  //       if (!redirectUrl) {
+  //         console.error('No redirect URL returned.');
+  //         //return;
+  //       }
+        
+  //       const urlParams = new URLSearchParams(new URL(redirectUrl).search);
+  //       const code = urlParams.get('code');
+  //       console.log('Code', code);
+
+  //       if (code) {
+  //         console.log('Authorization code:', code);
+  //         // You need to exchange the authorization code for an access token
+  //         // Implement the token exchange logic here
+
+  //         // For now, set isAuthenticated to true to simulate a successful login
+  //         setIsAuthenticated(true);
+  //       }
+  //     }
+  //   );
+  // };
+
+  const handleLinkedInAuth = () => {
+    chrome.runtime.sendMessage({ type: 'AUTHENTICATE' }, (response) => {
+      if (response && response.token) {
+        console.log('Access token:', response.token);
+        fetchLinkedInProfileWithToken(response.token).then((profile) => {
+          setProfileName(profile.localizedFirstName + ' ' + profile.localizedLastName);
+        });
+      } else {
+        console.error('Authentication failed or user did not authorize the app');
+      }
+    });
+  };
+
+  const fetchLinkedInProfileWithToken = async (token: string) => {
+    const response = await fetch('https://api.linkedin.com/v2/me', {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    const profile = await response.json();
+    return profile;
+  };
+  
+
   return (
     <main>
       <h3>SidePanel Page</h3>
       <h4>Count from Popup: {countSync}</h4>
       {profileName && <h4>Profile Name: {profileName}</h4>}
+
+      <button onClick={handleLinkedInAuth}>
+        {isAuthenticated ? 'Authenticated' : 'Authenticate with LinkedIn'}
+      </button>
+
       <div className="form-container">
         <label htmlFor="jobTitle">Select Job Title:</label>
         <select

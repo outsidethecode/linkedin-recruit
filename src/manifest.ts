@@ -36,11 +36,22 @@ export default defineManifest({
   },
   web_accessible_resources: [
     {
-      resources: ['img/logo-16.png', 'img/logo-34.png', 'img/logo-48.png', 'img/logo-128.png'],
+      resources: [],//'img/logo-16.png', 'img/logo-34.png', 'img/logo-48.png', 'img/logo-128.png'
       matches: [],
     },
   ],
-  permissions: ['sidePanel', 'storage', 'activeTab', 'tabs'],
+  permissions: ['sidePanel', 'storage', 'activeTab', 'tabs', 'identity', 'webNavigation', 'http://*/*', 'https://*.linkedin.com/*', 'https://*.chromiumapp.org/*'],
+  host_permissions: [
+    'https://*.linkedin.com/*',
+    'https://*.chromiumapp.org/*'
+  ],
+  oauth2: {
+    client_id: '78pidx3x194n5y',
+    scopes: [
+      'r_liteprofile',
+      'r_emailaddress'
+    ]
+  },
   chrome_url_overrides: {
     newtab: 'newtab.html',
   },
