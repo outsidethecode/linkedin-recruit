@@ -48,6 +48,7 @@ export const SidePanel = () => {
   const [jobTitles, setJobTitles] = useState<string[]>([]);
   const [profileName, setProfileName] = useState<string>('');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [accessToken, setAccessToken] = useState<string | null>(null);
 
   const link = 'https://github.com/guocaoyi/create-chrome-ext';
 
@@ -80,22 +81,25 @@ export const SidePanel = () => {
 
           // Placeholder for calling the LinkedIn API
           // Simulate fetching LinkedIn profile data
-          fetchLinkedInProfile().then((profile: any) => {
-            console.log('Got the profile', profile);
-            setProfileName(profile.name);
-          });
+          if (isAuthenticated && accessToken) {
+            fetchLinkedInProfile(accessToken).then((profile: any) => {
+              console.log('Got the profile', profile);
+              setProfileName(profile.given_name);
+            });
+          }
         }
       }
     });
-  }, []);
+  }, [isAuthenticated]);
 
-  const fetchLinkedInProfile = async () => {
-    // Simulate an API call by returning a promise that resolves to the mock JSON
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve(mockLinkedInProfile);
-      }, 1000);
+  const fetchLinkedInProfile = async (token: string) => {
+    const response = await fetch('https://api.linkedin.com/v2/userinfo', {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
     });
+    const profile = await response.json();
+    return profile;
   };
 
   const calculateMatchPercentage = (requirements: JobRequirement[]): { requirement: JobRequirement, percentage: number, comment: string }[] => {
@@ -124,69 +128,18 @@ export const SidePanel = () => {
     });
   };
 
-  // const handleLinkedInAuth = () => {
-  //   const clientId = '78pidx3x194n5y'; // Replace with your LinkedIn app client ID
-  //   const redirectUri = chrome.identity.getRedirectURL();
-  //   const state = encodeURIComponent('random_state_string123456'); // Generate a random state string
-  //   console.log('Redirect URI:', redirectUri);
-
-  //   const authUrl = `https://www.linkedin.com/oauth/v2/authorization?response_type=code&client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=r_liteprofile%20r_emailaddress&state=${state}`;
-
-  //   chrome.identity.launchWebAuthFlow(
-  //     {
-  //       url: authUrl,
-  //       interactive: true,
-  //     },
-  //     (redirectUrl: any) => {
-  //       if (chrome.runtime.lastError) {
-  //         console.error(chrome.runtime.lastError);
-  //         //return;
-  //       }
-
-  //       if (!redirectUrl) {
-  //         console.error('No redirect URL returned.');
-  //         //return;
-  //       }
-        
-  //       const urlParams = new URLSearchParams(new URL(redirectUrl).search);
-  //       const code = urlParams.get('code');
-  //       console.log('Code', code);
-
-  //       if (code) {
-  //         console.log('Authorization code:', code);
-  //         // You need to exchange the authorization code for an access token
-  //         // Implement the token exchange logic here
-
-  //         // For now, set isAuthenticated to true to simulate a successful login
-  //         setIsAuthenticated(true);
-  //       }
-  //     }
-  //   );
-  // };
-
   const handleLinkedInAuth = () => {
     chrome.runtime.sendMessage({ type: 'AUTHENTICATE' }, (response) => {
+      console.log("Response: ", response);
       if (response && response.token) {
         console.log('Access token:', response.token);
-        fetchLinkedInProfileWithToken(response.token).then((profile) => {
-          setProfileName(profile.localizedFirstName + ' ' + profile.localizedLastName);
-        });
+        setAccessToken(response.token);
+        setIsAuthenticated(true);
       } else {
         console.error('Authentication failed or user did not authorize the app');
       }
     });
   };
-
-  const fetchLinkedInProfileWithToken = async (token: string) => {
-    const response = await fetch('https://api.linkedin.com/v2/me', {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
-    const profile = await response.json();
-    return profile;
-  };
-  
 
   return (
     <main>
