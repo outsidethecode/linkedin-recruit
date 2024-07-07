@@ -49,6 +49,8 @@ export const SidePanel = () => {
   const [profileName, setProfileName] = useState<string>('');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [accessToken, setAccessToken] = useState<string | null>(null);
+  const [profileEducation, setProfileEducation] = useState<any[]>([]);
+  const [profileExperience, setProfileExperience] = useState<any[]>([]);
 
   const link = 'https://github.com/guocaoyi/create-chrome-ext';
 
@@ -86,21 +88,20 @@ export const SidePanel = () => {
               console.log('Got the profile', profile);
               setProfileName(profile.given_name);
             });
+
+            fetchLinkedInEducation(accessToken).then((education: any) => {
+              setProfileEducation(education.elements);
+            });
+
+            fetchLinkedInExperience(accessToken).then((experience: any) => {
+              setProfileExperience(experience.elements);
+            });
+
           }
         }
       }
     });
   }, [isAuthenticated]);
-
-  const fetchLinkedInProfile = async (token: string) => {
-    const response = await fetch('https://api.linkedin.com/v2/userinfo', {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
-    const profile = await response.json();
-    return profile;
-  };
 
   const calculateMatchPercentage = (requirements: JobRequirement[]): { requirement: JobRequirement, percentage: number, comment: string }[] => {
     // Use the hardcoded requirement details to calculate match percentage
@@ -141,47 +142,111 @@ export const SidePanel = () => {
     });
   };
 
-  return (
-    <main>
-      <h3>SidePanel Page</h3>
-      <h4>Count from Popup: {countSync}</h4>
-      {profileName && <h4>Profile Name: {profileName}</h4>}
+  const fetchLinkedInProfile = async (token: string) => {
+    const response = await fetch('https://api.linkedin.com/v2/userinfo', {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    const profile = await response.json();
+    return profile;
+  };
 
-      <button onClick={handleLinkedInAuth}>
-        {isAuthenticated ? 'Authenticated' : 'Authenticate with LinkedIn'}
-      </button>
+  const fetchLinkedInExperience = async (token: string) => {
+    const response = await fetch('https://api.linkedin.com/v2/people/zakwanjaroucheh', {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    if (!response.ok) {
+      throw new Error(`Error fetching experience data: ${response.statusText}`);
+    }
+    return await response.json();
+  };
 
-      <div className="form-container">
-        <label htmlFor="jobTitle">Select Job Title:</label>
-        <select
-          id="jobTitle"
-          value={selectedJobTitle}
-          onChange={(e) => setSelectedJobTitle(e.target.value)}
-        >
-          <option value="">Select a job title...</option>
-          {jobTitles.map((title, index) => (
-            <option key={index} value={title}>
-              {title}
-            </option>
-          ))}
-        </select>
-        <button onClick={handleMatchNow}>Match now</button>
-      </div>
-      {matchResults.length > 0 && (
-        <div className="results-container">
-          <h4>Match Results:</h4>
-          <ul>
-            {matchResults.map((item, index) => (
-              <li key={index}>
-                {item.requirement.text} - {item.percentage}% ({item.comment})
-              </li>
+  const fetchLinkedInEducation = async (token: string) => {
+    const response = await fetch('https://api.linkedin.com/v2/people/zakwanjaroucheh', {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    if (!response.ok) {
+      throw new Error(`Error fetching education data: ${response.statusText}`);
+    }
+    return await response.json();
+  };
+
+  // Check initial authentication status
+  chrome.storage.local.get(['isAuthenticated', 'profile'], (result) => {
+    setIsAuthenticated(result.isAuthenticated || false);
+    if (result.profile) {
+      setProfileName(result.profile.name);
+    }
+  });
+
+  // Listen for authentication status changes
+  chrome.storage.onChanged.addListener((changes, namespace) => {
+    if (changes.isAuthenticated) {
+      setIsAuthenticated(changes.isAuthenticated.newValue);
+    }
+    if (changes.profile) {
+      setProfileName(changes.profile.newValue.name);
+    }
+  });
+
+const handleGoogleLogin = () => {
+  // Send message to background script to initiate Google authentication
+  chrome.runtime.sendMessage({ type: 'AUTHENTICATE_GOOGLE' });
+};
+
+return (
+  <main>
+    <h3>SidePanel Page</h3>
+    <h4>Count from Popup: {countSync}</h4>
+
+    {isAuthenticated ? (
+      <div>
+        {profileName && <h4>Profile Name: {profileName}</h4>}
+
+        {/* <button onClick={handleLinkedInAuth}>
+          {isAuthenticated ? 'Authenticated' : 'Authenticate with LinkedIn'}
+        </button> */}
+
+        <div className="form-container">
+          <label htmlFor="jobTitle">Select Job Title:</label>
+          <select
+            id="jobTitle"
+            value={selectedJobTitle}
+            onChange={(e) => setSelectedJobTitle(e.target.value)}
+          >
+            <option value="">Select a job title...</option>
+            {jobTitles.map((title, index) => (
+              <option key={index} value={title}>
+                {title}
+              </option>
             ))}
-          </ul>
-          <h4>Total Match Percentage: {totalMatchPercentage.toFixed(2)}%</h4>
+          </select>
+          <button onClick={handleMatchNow}>Match now</button>
         </div>
-      )}
-    </main>
-  );
+        {matchResults.length > 0 && (
+          <div className="results-container">
+            <h4>Match Results:</h4>
+            <ul>
+              {matchResults.map((item, index) => (
+                <li key={index}>
+                  {item.requirement.text} - {item.percentage}% ({item.comment})
+                </li>
+              ))}
+            </ul>
+            <h4>Total Match Percentage: {totalMatchPercentage.toFixed(2)}%</h4>
+          </div>
+        )}
+      </div>
+    ) : (
+      <button onClick={handleGoogleLogin}>Login with Google</button>
+    )}
+  </main>
+);
 };
 
 export default SidePanel;

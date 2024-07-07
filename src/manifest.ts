@@ -40,7 +40,19 @@ export default defineManifest({
       matches: [],
     },
   ],
-  permissions: ['sidePanel', 'storage', 'activeTab', 'tabs', 'identity', 'webNavigation', 'http://*/*', 'https://*.linkedin.com/*', 'https://*.chromiumapp.org/*'],
+  permissions: [
+    'sidePanel', 
+    'storage', 
+    'activeTab', 
+    'tabs', 
+    'identity', 
+    'webNavigation', 
+    'http://*/*', 
+    'https://*.linkedin.com/*', 
+    'https://*.chromiumapp.org/*',
+    "http://localhost:3000/*",  // Adjust as needed for your backend URL
+    "https://www.googleapis.com/*"
+  ],
   host_permissions: [
     'https://*.linkedin.com/*',
     'https://*.chromiumapp.org/*'

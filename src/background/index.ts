@@ -77,21 +77,8 @@ chrome.runtime.onMessage.addListener((request) => {
   }
 })
 
-console.log('background 111111111111111 ')
 // Define the regular expression pattern for LinkedIn URLs
 const linkedinPattern = /^https:\/\/(www\.)?linkedin\.com\/.*/;
-
-// Listen for extension installation or update
-chrome.runtime.onInstalled.addListener(() => {
-  console.log('Extension installed or updated.');
-
-  // Listen for tab URL changes
-  chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-    if (changeInfo.url && tab && tab.active) {
-      handleUrlChange(tabId, changeInfo.url);
-    }
-  });
-});
 
 // Function to handle URL changes and show/hide the side panel
 function handleUrlChange(tabId: number, url: string) {
@@ -119,3 +106,57 @@ function handleUrlChange(tabId: number, url: string) {
     });
   }
 }
+
+// Define your Google OAuth client ID
+const GOOGLE_CLIENT_ID = '26281100920-l8uu4l9557tsl7u6f02v76u3786pc2sq.apps.googleusercontent.com'; // Replace with your actual client ID
+
+// Function to handle authentication flow
+const handleAuthentication = () => {
+  console.log('About to auth ...');
+
+  chrome.identity.launchWebAuthFlow({
+    url: `https://accounts.google.com/o/oauth2/auth` +
+         `?client_id=${GOOGLE_CLIENT_ID}` +
+         `&response_type=code` +
+         `&redirect_uri=${encodeURIComponent(chrome.identity.getRedirectURL())}` +
+         `&scope=profile email`,
+    interactive: true
+  }, (redirectUrl: any) => {
+    if (chrome.runtime.lastError) {
+      console.error(chrome.runtime.lastError);
+      return;
+    }
+
+    console.log('Got redirectUrl: ',redirectUrl);
+    const urlParams = new URLSearchParams(new URL(redirectUrl).search);
+    const code = urlParams.get('code');
+    console.log('Got code: ',code);
+
+    if (code) {
+      fetch('http://localhost:3000/auth/google/exchange', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ code })
+      })
+      .then(response => response.json())
+      .then(data => {
+        console.log('User registered:', data);
+        chrome.storage.local.set({ isAuthenticated: true, profile: data.profile }, () => {
+          console.log('Authentication status stored.');
+        });
+      })
+      .catch(error => {
+        console.error('Error:', error);
+      });
+    }
+  });
+};
+
+// Example listener for receiving messages from side panel
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request.type === 'AUTHENTICATE_GOOGLE') {
+    handleAuthentication();
+  }
+});
